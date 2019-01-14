@@ -57,20 +57,23 @@
 	#define DEV_SYS_INIT_MASK		0x80
 	#define DEV_LOL_B_MASK			0x40
 	#define DEV_LOL_A_MASK			0x20
-	#define DEV_LOS_MASK			0x10
+	#define DEV_LOS_CLKIN_MASK		0x10
+	#define DEV_LOS_XTAL_MASK		0x08
 	#define DEV_REVID_MASK			0x03
 
 #define REG_DEV_STICKY			1
 	#define DEV_STKY_SYS_INIT_MASK	0x80
 	#define DEV_STKY_LOL_B_MASK		0x40
 	#define DEV_STKY_LOL_A_MASK		0x20
-	#define DEV_STKY_LOS_MASK		0x10
+	#define DEV_STKY_LOS_CLKIN_MASK	0x10
+	#define DEV_STKY_LOS_XTAL_MASK	0x08
 
 #define REG_INT_MASK			2
 	#define INT_MASK_SYS_INIT_MASK	0x80
 	#define INT_MASK_LOL_B_MASK		0x40
 	#define INT_MASK_LOL_A_MASK		0x20
-	#define INT_MASK_LOS_MASK		0x10
+	#define INT_MASK_LOS_CLKIN_MASK	0x10
+	#define INT_MASK_LOS_XTAL_MASK	0x08
 
 /*
  * This section contains data structures for configuring the
@@ -79,15 +82,26 @@
 
 #define REG_XTAL_CL		183
 #define XTAL_CL_MASK	0xC0
+//The following is an unexplained parameter. SiLabs is not willing to tell anyone what it does and the default value does not work well for me.
+//It seems that bits 0 and 3 do nothing, bits 1 and 2 somehow affect PLLA, setting both to 1 causes PLLA to never lock, bits 4 and 5 do the same for PLLB
+//It probably sets the PLL charge pump current, but who knows. Unless you want to tune the PLL to <200 MHz, let it be zero.
+#define PLL_CL_MASK		0x36
 
 //this sets the crystal load capacitance
 typedef enum
 {
-	XTAL_Load_4_pF  = 0x12,
-	XTAL_Load_6_pF  = 0x52,
-	XTAL_Load_8_pF  = 0x92,
-	XTAL_Load_10_pF = 0xD2
+	XTAL_Load_4_pF  = 0x00,
+	XTAL_Load_6_pF  = 0x40,
+	XTAL_Load_8_pF  = 0x80,
+	XTAL_Load_10_pF = 0xC0
 } Si5351_XTALLoadTypeDef;
+
+typedef enum
+{
+	PLL_ChargePumpCurrent_0 = 0,
+	PLL_ChargePumpCurrent_1 = 1,
+	PLL_ChargePumpCurrent_2 = 2
+} Si5351_PLLChargePumpCurrentTypeDef;
 
 #define REG_CLKIN_DIV	15
 #define CLKIN_MASK		0xC0
@@ -103,7 +117,9 @@ typedef enum
 } Si5351_CLKINDivTypeDef;
 
 #define REG_FANOUT_EN		 	187
-#define FANOUT_DEFAULT_VALUE 	0xD0
+#define FANOUT_CLKIN_EN_MASK	0x80
+#define FANOUT_XO_EN_MASK		0x40
+#define FANOUT_MS_EN_MASK		0x10
 
 #define REG_VCXO_PARAM_0_7	 	162
 #define REG_VCXO_PARAM_8_15	 	163
@@ -170,6 +186,7 @@ typedef struct
 	uint32_t PLL_Multiplier_Numerator;
 	uint32_t PLL_Multiplier_Denominator;
 	Si5351_PLLClockSourceTypeDef PLL_Clock_Source;
+	Si5351_PLLChargePumpCurrentTypeDef PLL_Charge_Pump_Current;
 } Si5351_PLLConfigTypeDef;
 
 /*
@@ -392,6 +409,12 @@ typedef struct
 	EnableState Interrupt_Mask_PLLB;
 	EnableState Interrupt_Mask_PLLA;
 	EnableState Interrupt_Mask_CLKIN;
+	EnableState Interrupt_Mask_XTAL;
+
+	//Fanout enable - enables internal clock routing
+	EnableState Fanout_MS_EN;
+	EnableState Fanout_XO_EN;
+	EnableState Fanout_CLKIN_EN;
 
 	I2C_TypeDef *I2Cx;				//the I2C interface that will be used
 	uint8_t HW_I2C_Address;			//I2C address of the Si5351 for the packages with A0 pin
@@ -446,7 +469,8 @@ typedef enum
 	StatusBit_SysInit = DEV_SYS_INIT_MASK,
 	StatusBit_PLLA = DEV_STKY_LOL_A_MASK,
 	StatusBit_PLLB = DEV_LOL_B_MASK,
-	StatusBit_CLKIN = DEV_LOS_MASK
+	StatusBit_CLKIN = DEV_LOS_CLKIN_MASK,
+	StatusBit_XTAL = DEV_LOS_XTAL_MASK,
 } Si5351_StatusBitTypeDef;
 
 //these write to and read from a Si5351 register, for porting

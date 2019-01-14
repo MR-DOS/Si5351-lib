@@ -1,7 +1,7 @@
 /*
  * si5351.c
  *
- *  Created on: Feb 16, 2018
+ *  Created on: Jan 14, 2019
  *      Author: Petr Polasek
  *
  *      To make this library useable on any other device than
@@ -33,6 +33,7 @@ int Si5351_WriteRegister(Si5351_ConfigTypeDef *Si5351_ConfigStruct,  uint8_t reg
 	uint32_t error_wait;
 
 	error_wait = I2C_TIMEOUT;
+
 	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_BUSY) == SET)
 	{
 		error_wait--;
@@ -175,6 +176,11 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	Si5351_ConfigStruct->Interrupt_Mask_PLLA = ON;
 	Si5351_ConfigStruct->Interrupt_Mask_PLLB = ON;
 	Si5351_ConfigStruct->Interrupt_Mask_SysInit = ON;
+	Si5351_ConfigStruct->Interrupt_Mask_XTAL = ON;
+
+	Si5351_ConfigStruct->Fanout_CLKIN_EN = ON;
+	Si5351_ConfigStruct->Fanout_MS_EN = ON;
+	Si5351_ConfigStruct->Fanout_XO_EN = ON;
 
 	Si5351_ConfigStruct->OSC.CLKIN_Div = CLKINDiv_Div1;
 	Si5351_ConfigStruct->OSC.OSC_XTAL_Load = XTAL_Load_10_pF;
@@ -186,6 +192,7 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Integer = 32; 		//range 24..36 for 25 MHz clock
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Numerator = 0; 		//range 0..1048575
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Denominator = 1; 	//range 1..1048575
+		Si5351_ConfigStruct->PLL[i].PLL_Charge_Pump_Current = 0;		//select 0, unles you want to tune the PLL to <200 MHZ
 	}
 
 	Si5351_ConfigStruct->SS.SS_Amplitude_ppm = 15000;
@@ -215,8 +222,10 @@ void Si5351_OSCConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	uint8_t tmp;
 	uint32_t VCXO_Param;
 
-	//set XTAL capacitive load
-	tmp = XTAL_CL_MASK & (Si5351_ConfigStruct->OSC.OSC_XTAL_Load);
+	//set XTAL capacitive load and PLL charge pump current
+	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_XTAL_CL);
+	tmp &= ~(XTAL_CL_MASK | PLL_CL_MASK);
+	tmp |= (XTAL_CL_MASK & (Si5351_ConfigStruct->OSC.OSC_XTAL_Load)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[0].PLL_Charge_Pump_Current) << 1)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[1].PLL_Charge_Pump_Current) << 4));
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_XTAL_CL, tmp);
 
 	//set CLKIN pre-divider
@@ -225,10 +234,13 @@ void Si5351_OSCConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	tmp |= CLKIN_MASK & Si5351_ConfigStruct->OSC.CLKIN_Div;
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLKIN_DIV, tmp);
 
-	//enable fanout of XO, MS0, MS4 and CLKIN - should be always on unless you
+	//set fanout of XO, MS0, MS4 and CLKIN - should be always on unless you
 	//need to reduce power consumption
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_FANOUT_EN);
-	tmp |= FANOUT_DEFAULT_VALUE;
+	tmp &= ~(FANOUT_CLKIN_EN_MASK | FANOUT_MS_EN_MASK | FANOUT_XO_EN_MASK);
+	if (Si5351_ConfigStruct->Fanout_CLKIN_EN == ON) tmp |= FANOUT_CLKIN_EN_MASK;
+	if (Si5351_ConfigStruct->Fanout_MS_EN == ON) tmp |= FANOUT_MS_EN_MASK;
+	if (Si5351_ConfigStruct->Fanout_XO_EN == ON) tmp |= FANOUT_XO_EN_MASK;
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_FANOUT_EN, tmp);
 
 	//set default value of SS_NCLK - spread spectrum reserved register
@@ -239,7 +251,10 @@ void Si5351_OSCConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	//if "b" in PLLB set to 10^6, set VCXO parameter
 	if (Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Denominator == 1000000)
 	{
-		VCXO_Param = VCXO_PARAM_MASK & (uint32_t)(1.03 * (Si5351_ConfigStruct->OSC.VCXO_Pull_Range_ppm) * (128 * Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Integer + ((float)(Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Numerator) / 1000000)));
+		VCXO_Param = VCXO_PARAM_MASK & (uint32_t)
+				((103 * Si5351_ConfigStruct->OSC.VCXO_Pull_Range_ppm
+						* ((uint64_t)128000000 * Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Integer +
+								Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Numerator))/100000000);
 	} else {
 		VCXO_Param = 0;
 	}
@@ -275,10 +290,16 @@ void Si5351_InterruptConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	uint8_t tmp;
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_INT_MASK);
 
-	tmp &= ~INT_MASK_LOS_MASK;
+	tmp &= ~INT_MASK_LOS_CLKIN_MASK;
 	if (Si5351_ConfigStruct->Interrupt_Mask_CLKIN == ON)
 	{
-		tmp |= INT_MASK_LOS_MASK;
+		tmp |= INT_MASK_LOS_CLKIN_MASK;
+	}
+
+	tmp &= ~INT_MASK_LOS_XTAL_MASK;
+	if (Si5351_ConfigStruct->Interrupt_Mask_XTAL == ON)
+	{
+		tmp |= INT_MASK_LOS_XTAL_MASK;
 	}
 
 	tmp &= ~INT_MASK_LOL_A_MASK;
@@ -293,7 +314,7 @@ void Si5351_InterruptConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		tmp |= INT_MASK_LOL_B_MASK;
 	}
 
-	tmp &= ~INT_MASK_LOS_MASK;
+	tmp &= ~INT_MASK_SYS_INIT_MASK;
 	if (Si5351_ConfigStruct->Interrupt_Mask_SysInit == ON)
 	{
 		tmp |= INT_MASK_SYS_INIT_MASK;
@@ -323,11 +344,8 @@ void Si5351_PLLConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_PLLChann
 	tmp |= tmp_mask & Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Clock_Source;
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_PLL_CLOCK_SOURCE, tmp);
 
-
-	//if new multiplier not even integer or SS is on, disable the integer mode
-	if ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Numerator != 0)
-			| ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Integer & 0x01) != 0 )
-			| (Si5351_ConfigStruct->SS.SS_Enable == ON))
+	//if new multiplier not even  integer, disable the integer mode
+	if ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Numerator != 0) | ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Integer & 0x01) != 0 ))
 	{
 		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_FB_INT + PLL_Channel);
 		tmp &= ~FB_INT_MASK;
@@ -364,10 +382,8 @@ void Si5351_PLLConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_PLLChann
 	tmp |= (uint8_t) (MSN_P3_16_19_MASK & ((MSN_P3 >> 16) << 4));
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_MSN_P3_16_19 + 8 * PLL_Channel, tmp);
 
-	//if new multiplier is an even integer and SS is off, enable integer mode
-	if ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Numerator == 0)
-			& ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Integer & 0x01) == 0 )
-			& (Si5351_ConfigStruct->SS.SS_Enable == OFF))
+	//if new multiplier is an even integer, enable integer mode
+	if ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Numerator == 0) & ((Si5351_ConfigStruct->PLL[PLL_Channel].PLL_Multiplier_Integer & 0x01) == 0 ))
 	{
 		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_FB_INT + PLL_Channel);
 		tmp |= FB_INT_MASK;
@@ -394,7 +410,7 @@ void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 {
 	uint8_t tmp;
 	uint32_t SSUDP, SSUP_P1, SSUP_P2, SSUP_P3, SSDN_P1, SSDN_P2, SSDN_P3;
-	float SSDN, SSUP;
+	uint64_t SSDN, SSUP;
 
 	//turn off SS if it should be disabled
 	if ((Si5351_ConfigStruct->SS.SS_Enable == OFF)|
@@ -436,28 +452,24 @@ void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	//calculate SSUP and SSDN parameters
 	if (Si5351_ConfigStruct->SS.SS_Mode == SS_Mode_CenterSpread)
 	{
-		SSUP = ((float)(64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
-			 	  + (64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(float)(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
+		SSUP = ((uint64_t)(64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
+			 	  + (64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
 			 	 ) * Si5351_ConfigStruct->SS.SS_Amplitude_ppm
 				) / ((1000000 - Si5351_ConfigStruct->SS.SS_Amplitude_ppm) * SSUDP);
 
-		SSDN = ((float)(64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
-			 	  + (64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(float)(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
+		SSDN = ((uint64_t)(64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
+			 	  + (64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
 			 	 ) * Si5351_ConfigStruct->SS.SS_Amplitude_ppm
 				) / ((1000000 + Si5351_ConfigStruct->SS.SS_Amplitude_ppm) * SSUDP);
 
-		SSUP_P1 = (uint32_t) SSUP;
-		SSUP_P2 = (uint32_t)(32767*(SSUP-SSUP_P1));
+		SSUP_P1 = (uint32_t) (SSUP/1000000);
+		SSUP_P2 = (uint32_t)(32767*(SSUP/1000000-SSUP_P1));
 		SSUP_P3 = 0x7FFF;
-
-		SSDN_P1 = (uint32_t) SSDN;
-		SSDN_P2 = (uint32_t)(32767*(SSDN-SSDN_P1));
-		SSDN_P3 = 0x7FFF;
 
 	} else {
 
-		SSDN = ((float)(64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
-				 	 + (64*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(float)(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
+		SSDN = ((uint64_t)(64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Integer
+				 	 + (64000000*Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Numerator)/(Si5351_ConfigStruct->PLL[0].PLL_Multiplier_Denominator)
 				 ) * Si5351_ConfigStruct->SS.SS_Amplitude_ppm
 				) / ((1000000 + Si5351_ConfigStruct->SS.SS_Amplitude_ppm) * SSUDP);
 
@@ -465,10 +477,12 @@ void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		SSUP_P2 = 0;
 		SSUP_P3 = 1;
 
-		SSDN_P1 = (uint32_t) SSDN;
-		SSDN_P2 = (uint32_t)(32767*(SSDN-SSDN_P1));
-		SSDN_P3 = 0x7FFF;
 	}
+
+	//set SSDN parameter
+	SSDN_P1 = (uint32_t) (SSDN/1000000);
+	SSDN_P2 = (uint32_t)(32767*(SSDN/1000000-SSDN_P1));
+	SSDN_P3 = 0x7FFF;
 
 	//write SSUP parameter P1
 	tmp = (uint8_t) SSUP_P1;
