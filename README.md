@@ -104,7 +104,7 @@ This is the only place where there is some mention of the charge pump:
 
 [AN-619: Manually generating a Si5351 Register Map v0.6](/documentation/AN619_0.6.pdf)
 
-[Si5351 FAQ v0.2](/documentation/Si5350-Si5351 FAQ(v0.2).pdf)
+[Si5351 FAQ v0.2](/documentation/Si5350-Si5351FAQ(v0.2).pdf)
 
 Here is a list of errors I found in datasheet 1.0 and AN-619 0.6:
 
