@@ -63,7 +63,7 @@ Maybe I will make it platform independent, so it could be used at least with Ard
 ----
 ## Example
 Simple example how to get 50 kHz output with 25 MHz crystal:
-```
+```C
 Si5351_ConfigTypeDef Si5351_ConfigStruct;
 
 Si5351_StructInit(&Si5351_ConfigStruct);	//initialize the structure with default "safe" values
