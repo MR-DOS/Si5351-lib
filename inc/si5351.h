@@ -82,9 +82,6 @@
 
 #define REG_XTAL_CL		183
 #define XTAL_CL_MASK	0xC0
-//The following is an unexplained parameter. SiLabs is not willing to tell anyone what it does and the default value does not work well for me.
-//It seems that bits 0 and 3 do nothing, bits 1 and 2 somehow affect PLLA, setting both to 1 causes PLLA to never lock, bits 4 and 5 do the same for PLLB
-//It probably sets the PLL charge pump current, but who knows. Unless you want to tune the PLL to <200 MHz, let it be zero.
 #define PLL_CL_MASK		0x36
 
 //this sets the crystal load capacitance
@@ -96,12 +93,14 @@ typedef enum
 	XTAL_Load_10_pF = 0xC0
 } Si5351_XTALLoadTypeDef;
 
+//The following is an unexplained parameter. However someone from SiLabs called it "VCO load cap".
+//Lower settings seem to be more stable on higher frequencies, higher settings are more stable on lower frequencies allowing to tune the PLL to <200 MHz.
 typedef enum
 {
-	PLL_ChargePumpCurrent_0 = 0,
-	PLL_ChargePumpCurrent_1 = 1,
-	PLL_ChargePumpCurrent_2 = 2
-} Si5351_PLLChargePumpCurrentTypeDef;
+	PLL_Capacitive_Load_0 = 0,
+	PLL_Capacitive_Load_1 = 1,
+	PLL_Capacitive_Load_2 = 2
+} Si5351_PLLCapacitiveLoadTypeDef;
 
 #define REG_CLKIN_DIV	15
 #define CLKIN_MASK		0xC0
@@ -186,7 +185,7 @@ typedef struct
 	uint32_t PLL_Multiplier_Numerator;
 	uint32_t PLL_Multiplier_Denominator;
 	Si5351_PLLClockSourceTypeDef PLL_Clock_Source;
-	Si5351_PLLChargePumpCurrentTypeDef PLL_Charge_Pump_Current;
+	Si5351_PLLCapacitiveLoadTypeDef PLL_Capacitive_Load;
 } Si5351_PLLConfigTypeDef;
 
 /*

@@ -184,7 +184,7 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 
 	Si5351_ConfigStruct->OSC.CLKIN_Div = CLKINDiv_Div1;
 	Si5351_ConfigStruct->OSC.OSC_XTAL_Load = XTAL_Load_10_pF;
-	Si5351_ConfigStruct->OSC.VCXO_Pull_Range_ppm = 0; //maybe should be set to 30 ppm
+	Si5351_ConfigStruct->OSC.VCXO_Pull_Range_ppm = 0; //maybe should be set to 30 ppm, not clear from the AN-619
 
 	for (i=0; i<=1; i++)
 	{
@@ -192,7 +192,7 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Integer = 32; 		//range 24..36 for 25 MHz clock
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Numerator = 0; 		//range 0..1048575
 		Si5351_ConfigStruct->PLL[i].PLL_Multiplier_Denominator = 1; 	//range 1..1048575
-		Si5351_ConfigStruct->PLL[i].PLL_Charge_Pump_Current = 0;		//select 0, unles you want to tune the PLL to <200 MHZ
+		Si5351_ConfigStruct->PLL[i].PLL_Capacitive_Load = PLL_Capacitive_Load_0;		//select 0, unless you want to tune the PLL to <200 MHZ
 	}
 
 	Si5351_ConfigStruct->SS.SS_Amplitude_ppm = 15000;
@@ -222,10 +222,10 @@ void Si5351_OSCConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	uint8_t tmp;
 	uint32_t VCXO_Param;
 
-	//set XTAL capacitive load and PLL charge pump current
+	//set XTAL capacitive load and PLL VCO load capacitance
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_XTAL_CL);
 	tmp &= ~(XTAL_CL_MASK | PLL_CL_MASK);
-	tmp |= (XTAL_CL_MASK & (Si5351_ConfigStruct->OSC.OSC_XTAL_Load)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[0].PLL_Charge_Pump_Current) << 1)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[1].PLL_Charge_Pump_Current) << 4));
+	tmp |= (XTAL_CL_MASK & (Si5351_ConfigStruct->OSC.OSC_XTAL_Load)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[0].PLL_Capacitive_Load) << 1)) | (PLL_CL_MASK & ((Si5351_ConfigStruct->PLL[1].PLL_Capacitive_Load) << 4));
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_XTAL_CL, tmp);
 
 	//set CLKIN pre-divider
