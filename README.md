@@ -5,7 +5,7 @@ Si5351-A/B/C-B lib for STM32 Cortex M processors. Later, it may be modified for 
 
 ----
 ## Overview
-This library can (contrary to most other libraries) completely utilize the features of Si5351-A/B/C-B (second generation of Si5351-A/B/C). Currently, it can set all of the properties of input stage, PLLs, Multisynths, CLKs and output stage. It can also set several undocumented features which (at least I think so) were not yet implemented anywhere else - for example turn off "fanout" of several internal signals or modify current of internal charge pump which drives the PLL.
+This library can (contrary to most other libraries) completely utilize the features of Si5351-A/B/C-B (second generation of Si5351-A/B/C). Currently, it can set all of the properties of input stage, PLLs, Multisynths, CLKs and output stage. It can also set several undocumented features which (at least I think so) were not yet implemented anywhere else - for example turn off "fanout" of several internal signals or modify the capacitive load of the internal VCO.
 
 The approach of this library is not to completely abstract from the hardware of the PLL - you have to figure out the frequency plan yourself. This library handles all of the communication and formatting of the parameters and cuts off user from having to care about some details like switching between integer and fractional modes (this happens automatically inside the library).
 
@@ -14,7 +14,7 @@ Reset of PLLs is not yet completely automated, because it is very badly document
 ----
 ## Features
 ### Input Stage
-All of the important features are implemented - CLKIN divider, VCXO, crystal oscillator load setting and PLL charge pump current (yep, maybe it should be moved to other section).
+All of the important features are implemented - CLKIN divider, VCXO, crystal oscillator load setting and PLL capacitive load (yep, maybe it should be moved to other section).
 The undocumented 4 pF crystal load is included.
 
 TODO: Automatically detect if it is possible to turn off "fanout" of internal clocks.
@@ -22,14 +22,14 @@ TODO: Automatically detect if it is possible to turn off "fanout" of internal cl
 ### PLL
 The PLL can be set to any frequency - the limits were empirically found to be about 170 - 1200 MHz where the VCO can oscillate.
 Useable range of frequencies is however (on my tested devices) narrower - 170 to 820 MHz (yes, one is out of spec, the other is just abusement of the device, it should be 600-900).
-The library takes control of everything, all you need is to set the multiplier values and clock source and use the configuration functions. It is also possible to override the default charge pump current, though not recommended.
+The library takes control of everything, all you need is to set the multiplier values and clock source and use the configuration functions. It is also possible to override the default VCO capacitive load, though not recommended.
 
 TODO: Currently, only one PLL can be reset at a time. Note however that even by resetting them at the same time, they will never be synchronised! If you want synchronous clocks with defined phase offset, they have to be taken from one PLL!
 
 ### Spread Spectrum
 Spread spectrum supports both down- and center-spread. It has been empirically found that it can be used up to about 5% spread (datasheet allows max +-2.5%). At around 8%, glitches on output start to appear.
 
-TODO: Add possibility to set SS_NCLK by user. This however needs to be first tested using a spectral analyzer.
+TODO: Add possibility to set SS_NCLK by user. This however needs to be first tested using a spectral analyzer, because SiLabs are trying not to help at all.
 
 ### MultiSynth
 The MultiSynth can be set to any integer or fractional divider and use any of the PLLs. The library automatically sets the mode depending on the settings you give it.
@@ -100,7 +100,7 @@ Please see this, I tried to draw into the document what is wrong:
 
 [AN-619: Manually generating a Si5351 Register Map v0.7](/documentation/AN619_0.7.pdf)
 
-This is the only place where there is some mention of the charge pump:
+This is the only place where there is some mention of the VCO capacitive load:
 
 [AN-619: Manually generating a Si5351 Register Map v0.6](/documentation/AN619_0.6.pdf)
 
@@ -110,7 +110,7 @@ Here is a list of errors I found in datasheet 1.0 and AN-619 0.6:
 
 [First contact with someone from SiLabs about all of those nasty bugs](https://www.silabs.com/community/timing/forum.topic.html/si5351_hw_bugs_-out-KeNr)
 
-Effort to find some info about charge pump and the LOS_XTAL and its corresponding status bit, sticky bit and int mask:
+Effort to find some info about the VCO capacitive load and the LOS_XTAL and its corresponding status bit, sticky bit and int mask:
 
 [Second contact with SiLabs about the bugs, a year later](https://www.silabs.com/community/timing/forum.topic.html/si5351_register_183-r4JV)
 
