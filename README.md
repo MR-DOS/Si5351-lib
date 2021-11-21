@@ -117,9 +117,19 @@ Application note explaining setup of the chip:
 
 [AN-619: Manually generating a Si5351 Register Map v0.6 (This is the only place where there is some mention of the VCO capacitive load)](/documentation/AN619_0.6.pdf)
 
+[CURRENTLY NOT KNOWN ~~AN-619: Manually generating a Si5351 Register Map v0.5 NOT USED DURING LIBRARY CREATION~~]()
+
+[CURRENTLY NOT KNOWN ~~AN-619: Manually generating a Si5351 Register Map v0.4 NOT USED DURING LIBRARY CREATION~~]()
+
 [AN-619: Manually generating a Si5351 Register Map v0.3 NOT USED DURING LIBRARY CREATION](/documentation/AN619_0.3.pdf)
 
 [AN-619: Manually generating a Si5351 Register Map v0.2 NOT USED DURING LIBRARY CREATION](/documentation/AN619_0.2.pdf)
+
+[CURRENTLY NOT KNOWN ~~AN-619: Manually generating a Si5351 Register Map v0.1 NOT USED DURING LIBRARY CREATION~~]()
+
+Application note explaining setup of the chip for the 4-channel version of Si5351:
+
+[AN-1234: Manually Generating an Si5351 Register Map for 16QFN Devices v0.1](/documentation/AN1234_0.1.pdf)
 
 Auxiliary application notes:
 
