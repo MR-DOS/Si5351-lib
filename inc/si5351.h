@@ -203,6 +203,26 @@ typedef enum
 	SS_Mode_CenterSpread = 0x80
 } Si5351_SSModeTypeDef;
 
+typedef enum
+{
+	SS_NCLK_0 = 0x00,
+	SS_NCLK_1 = 0x10,
+	SS_NCLK_2 = 0x20,
+	SS_NCLK_3 = 0x30,
+	SS_NCLK_4 = 0x40,
+	SS_NCLK_5 = 0x50,
+	SS_NCLK_6 = 0x60,
+	SS_NCLK_7 = 0x70,
+	SS_NCLK_8 = 0x80,
+	SS_NCLK_9 = 0x90,
+	SS_NCLK_10 = 0xA0,
+	SS_NCLK_11 = 0xB0,
+	SS_NCLK_12 = 0xC0,
+	SS_NCLK_13 = 0xD0,
+	SS_NCLK_14 = 0xE0,
+	SS_NCLK_15 = 0xF0
+} Si5351_SSNCLKTypeDef;
+
 #define REG_SSDN_P1_0_7		153
 #define REG_SSDN_P1_8_11	154
 #define SSDN_P1_8_11_MASK	0x0F
@@ -242,6 +262,7 @@ typedef struct
 	uint32_t SS_Amplitude_ppm;	//amplitude of the SS feature in ppm of center frequency
 	EnableState SS_Enable;
 	Si5351_SSModeTypeDef SS_Mode;
+	Si5351_SSNCLKTypeDef SS_NCLK;
 } Si5351_SSConfigTypeDef;
 
 /*
@@ -385,7 +406,8 @@ typedef struct
 
 	Si5351_CLKRDivTypeDef CLK_R_Div; 	//R divider value (only powers of 2)
 	EnableState CLK_Invert; 			//invert output clock
-	EnableState CLK_Enable; 			//combined enable and powerdown flag
+	EnableState CLK_Enable; 			//enable flag
+	EnableState CLK_PowerDown;			//powerdown flag
 	Si5351_CLKDisableStateTypeDef CLK_Disable_State; //sets output behaviour when disabled
 	Si5351_CLKIDrvTypeDef CLK_I_Drv; 	//output driver current drive strength
 	EnableState CLK_Use_OEB_Pin;		//allows using OEB pin to enable clock
@@ -488,6 +510,7 @@ void Si5351_ClearStickyBit(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_Sta
 
 void Si5351_PLLConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_PLLChannelTypeDef PLL_Channel);
 void Si5351_PLLReset(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_PLLChannelTypeDef PLL_Channel);
+void Si5351_PLLSimultaneousReset(Si5351_ConfigTypeDef *Si5351_ConfigStruct);
 
 void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct);
 

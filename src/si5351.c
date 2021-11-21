@@ -24,7 +24,7 @@
  */
 
 //put your I2C HAL library name here
-#include "stm32f0xx_i2c.h"
+#include "stm32f10x_i2c.h"
 
 #include "si5351.h"
 
@@ -33,37 +33,45 @@ int Si5351_WriteRegister(Si5351_ConfigTypeDef *Si5351_ConfigStruct,  uint8_t reg
 	uint32_t error_wait;
 
 	error_wait = I2C_TIMEOUT;
-
 	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_BUSY) == SET)
 	{
 		error_wait--;
 		if (error_wait==0)
 		{
-			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx);
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, ENABLE);
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, DISABLE);
 			return 1;
 		}
 	}
 	//wait for I2C to get ready, if not ready in time, reset I2C and return
 
-	I2C_TransferHandling(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, 2, I2C_AutoEnd_Mode, I2C_Generate_Start_Write);
+	I2C_GenerateSTART(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//send START condition
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_MODE_SELECT) == ERROR)
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait for START to be sent, if not sent in time, return
+
+	I2C_Send7bitAddress(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, I2C_Direction_Transmitter);
 	//send address+RW bit
 
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_TXIS) == RESET)
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) == ERROR)
 	{
 		error_wait--;
-		if (error_wait==0)
-		{
-			return 1;
-		}
+		if (error_wait==0) return 1;
 	}
-	//wait for address to be sent
+	//wait for address to be sent, if not sent in time, return
 
 	I2C_SendData(Si5351_ConfigStruct->I2Cx, reg_address);
 	//send reg address
 
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_TXIS) == RESET)
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED) == ERROR)
 	{
 		error_wait--;
 		if (error_wait==0) return 1;
@@ -74,14 +82,24 @@ int Si5351_WriteRegister(Si5351_ConfigTypeDef *Si5351_ConfigStruct,  uint8_t reg
 	//send reg data
 
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF) == RESET)
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED) == ERROR)
 	{
 		error_wait--;
 		if (error_wait==0) return 1;
 	}
-	//wait for STOP flag
+	//wait for data to be sent, if not sent in time, return
 
-	I2C_ClearFlag(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF);	//clear STOP flag
+	I2C_GenerateSTOP(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//generate STOP condition
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF))
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait until STOP is cleared
+
 	return 0;
 }
 
@@ -89,7 +107,63 @@ uint8_t Si5351_ReadRegister(Si5351_ConfigTypeDef *Si5351_ConfigStruct,  uint8_t 
 {
 	uint32_t error_wait;
 
-	I2C_ClearFlag(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF | I2C_FLAG_NACKF);	//clear STOP flag
+	error_wait = I2C_TIMEOUT;
+	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_BUSY) == SET)
+	{
+		error_wait--;
+		if (error_wait==0)
+		{
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, ENABLE);
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, DISABLE);
+			return 1;
+		}
+	}
+	//wait for I2C to get ready, if not ready in time, reset I2C and return
+
+	I2C_GenerateSTART(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//send START condition
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_MODE_SELECT) == ERROR)
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait for START to be sent, if not sent in time, return
+
+	I2C_Send7bitAddress(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, I2C_Direction_Transmitter);
+	//send address+RW bit
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) == ERROR)
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait for address to be sent, if not sent in time, return
+
+	I2C_SendData(Si5351_ConfigStruct->I2Cx, reg_address);
+	//send reg address
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED) == ERROR)
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait for reg address to be sent
+
+	I2C_GenerateSTOP(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//generate STOP condition
+
+	error_wait = I2C_TIMEOUT;
+	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF))
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait until STOP is cleared
+
 
 	error_wait = I2C_TIMEOUT;
 	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_BUSY) == SET)
@@ -97,66 +171,56 @@ uint8_t Si5351_ReadRegister(Si5351_ConfigTypeDef *Si5351_ConfigStruct,  uint8_t 
 		error_wait--;
 		if (error_wait==0)
 		{
-			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx);
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, ENABLE);
+			I2C_SoftwareResetCmd(Si5351_ConfigStruct->I2Cx, DISABLE);
 			return 1;
 		}
 	}
 	//wait for I2C to get ready, if not ready in time, reset I2C and return
 
-	I2C_TransferHandling(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, 1, I2C_AutoEnd_Mode, I2C_Generate_Start_Write);
-	//send address+RW bit
+	I2C_GenerateSTART(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//send START condition
 
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_TXIS) == RESET)
-	{
-		error_wait--;
-		if (error_wait==0)
-		{
-			return 1;
-		}
-	}
-	//wait for address to be sent
-
-	I2C_SendData(Si5351_ConfigStruct->I2Cx, reg_address);
-	//send reg address
-
-	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF) == RESET)
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_MODE_SELECT) == ERROR)
 	{
 		error_wait--;
 		if (error_wait==0) return 1;
 	}
-	//wait for STOP flag
+	//wait for START to be sent, if not sent in time, return
 
-	I2C_ClearFlag(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF | I2C_FLAG_NACKF);	//clear STOP flag
-
-	I2C_TransferHandling(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, 1, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
+	I2C_Send7bitAddress(Si5351_ConfigStruct->I2Cx, Si5351_ConfigStruct->HW_I2C_Address, I2C_Direction_Receiver);
 	//send address+RW bit
 
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_RXNE) == RESET)
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED) == ERROR)
 	{
 		error_wait--;
-		if (error_wait==0)
-		{
-			return 1;
-		}
+		if (error_wait==0) return 1;
 	}
-	//wait for address to be sent
+	//wait for address to be sent, if not sent in time, return
+
+	while (I2C_CheckEvent(Si5351_ConfigStruct->I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) == ERROR)
+	{
+		error_wait--;
+		if (error_wait==0) return 1;
+	}
+	//wait for data
 
 	uint8_t reg_data;
 	reg_data = I2C_ReceiveData(Si5351_ConfigStruct->I2Cx);
 	//receive reg data
 
+	I2C_GenerateSTOP(Si5351_ConfigStruct->I2Cx, ENABLE);
+	//generate STOP condition
+
 	error_wait = I2C_TIMEOUT;
-	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF) == RESET)
+	while (I2C_GetFlagStatus(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF))
 	{
 		error_wait--;
 		if (error_wait==0) return 1;
 	}
-	//wait for STOP flag
-
-	I2C_ClearFlag(Si5351_ConfigStruct->I2Cx, I2C_FLAG_STOPF | I2C_FLAG_NACKF);	//clear STOP flag
+	//wait until STOP is cleared
 
 	return reg_data;
 }
@@ -195,9 +259,10 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		Si5351_ConfigStruct->PLL[i].PLL_Capacitive_Load = PLL_Capacitive_Load_0;		//select 0, unless you want to tune the PLL to <200 MHZ
 	}
 
-	Si5351_ConfigStruct->SS.SS_Amplitude_ppm = 15000;
+	Si5351_ConfigStruct->SS.SS_Amplitude_ppm = 0; //1.5% modulation = 15000
 	Si5351_ConfigStruct->SS.SS_Enable = OFF;
 	Si5351_ConfigStruct->SS.SS_Mode = SS_Mode_CenterSpread;
+	Si5351_ConfigStruct->SS.SS_NCLK = SS_NCLK_0; //default value, this parameter is unexplained in documentation
 
 	for (i=0; i<=7; i++)
 	{
@@ -211,6 +276,7 @@ void Si5351_StructInit(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		Si5351_ConfigStruct->CLK[i].CLK_Enable = OFF;
 		Si5351_ConfigStruct->CLK[i].CLK_I_Drv = CLK_I_Drv_8mA;
 		Si5351_ConfigStruct->CLK[i].CLK_Invert = OFF;
+		Si5351_ConfigStruct->CLK[i].CLK_PowerDown = OFF;
 		Si5351_ConfigStruct->CLK[i].CLK_QuarterPeriod_Offset = 0;
 		Si5351_ConfigStruct->CLK[i].CLK_R_Div = CLK_R_Div1;
 		Si5351_ConfigStruct->CLK[i].CLK_Use_OEB_Pin = OFF;
@@ -242,11 +308,6 @@ void Si5351_OSCConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	if (Si5351_ConfigStruct->Fanout_MS_EN == ON) tmp |= FANOUT_MS_EN_MASK;
 	if (Si5351_ConfigStruct->Fanout_XO_EN == ON) tmp |= FANOUT_XO_EN_MASK;
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_FANOUT_EN, tmp);
-
-	//set default value of SS_NCLK - spread spectrum reserved register
-	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_SS_NCLK);
-	tmp &= ~SS_NCLK_MASK; //set upper nibble to 0000b
-	Si5351_WriteRegister(Si5351_ConfigStruct, REG_SS_NCLK, tmp);
 
 	//if "b" in PLLB set to 10^6, set VCXO parameter
 	if (Si5351_ConfigStruct->PLL[1].PLL_Multiplier_Denominator == 1000000)
@@ -290,16 +351,16 @@ void Si5351_InterruptConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 	uint8_t tmp;
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_INT_MASK);
 
-	tmp &= ~INT_MASK_LOS_CLKIN_MASK;
-	if (Si5351_ConfigStruct->Interrupt_Mask_CLKIN == ON)
-	{
-		tmp |= INT_MASK_LOS_CLKIN_MASK;
-	}
-
 	tmp &= ~INT_MASK_LOS_XTAL_MASK;
 	if (Si5351_ConfigStruct->Interrupt_Mask_XTAL == ON)
 	{
 		tmp |= INT_MASK_LOS_XTAL_MASK;
+	}
+
+	tmp &= ~INT_MASK_LOS_CLKIN_MASK;
+	if (Si5351_ConfigStruct->Interrupt_Mask_CLKIN == ON)
+	{
+		tmp |= INT_MASK_LOS_CLKIN_MASK;
 	}
 
 	tmp &= ~INT_MASK_LOL_A_MASK;
@@ -406,6 +467,16 @@ void Si5351_PLLReset(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_PLLChanne
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_PLL_RESET, tmp);
 }
 
+void Si5351_PLLSimultaneousReset(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
+{
+	uint8_t tmp;
+
+	//reset PLL
+	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_PLL_RESET);
+	tmp |= PLLA_RESET_MASK | PLLB_RESET_MASK;
+	Si5351_WriteRegister(Si5351_ConfigStruct, REG_PLL_RESET, tmp);
+}
+
 void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 {
 	uint8_t tmp;
@@ -422,9 +493,10 @@ void Si5351_SSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 		Si5351_WriteRegister(Si5351_ConfigStruct, REG_SSC_EN, tmp);
 	}
 
-	//set default SS_NCLK value = 0
+	//set default value of SS_NCLK - spread spectrum reserved register
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_SS_NCLK);
 	tmp &= ~SS_NCLK_MASK;
+	tmp |= SS_NCLK_MASK & (Si5351_ConfigStruct->SS.SS_NCLK);
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_SS_NCLK, tmp);
 
 	//set SS mode
@@ -635,26 +707,54 @@ void Si5351_MSConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_MSChannel
 
 void Si5351_CLKPowerCmd(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_CLKChannelTypeDef CLK_Channel)
 {
-	uint8_t tmp;
-	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Enable == ON)
+	uint8_t tmp, tmp_mask;
+
+	//set CLK disable state
+	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_DIS_STATE + (CLK_Channel >> 2)); //increment the address by 1 if CLKx>=CLK4
+	tmp_mask = CLK_DIS_STATE_MASK << ((CLK_Channel & 0x03)<<1); //shift the mask according to the selected channel
+	tmp &= ~tmp_mask;
+	tmp |= tmp_mask & ((Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Disable_State) << ((CLK_Channel & 0x03)<<1));
+	Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_DIS_STATE + (CLK_Channel >> 2), tmp);
+
+	//set OEB pin
+	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_OEB);
+	tmp_mask = 1 << CLK_Channel;
+	tmp &= ~tmp_mask;
+	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Use_OEB_Pin == OFF)
+	{
+		tmp |= tmp_mask;
+	}
+
+	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Enable == OFF) //disable clock
+	{
+		//power down the clock
+		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_EN);
+		tmp |= 1 << CLK_Channel;
+		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_EN, tmp);
+	}
+
+	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_PowerDown == ON) //power down clock
+	{
+		//power down output driver
+		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel);
+		tmp |= CLK_PDN_MASK;
+		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel, tmp);
+	}
+
+	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_PowerDown == OFF) //power up clock
 	{
 		//power up output driver
 		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel);
 		tmp &= ~CLK_PDN_MASK;
 		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel, tmp);
+	}
+
+	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Enable == ON) //enable clock
+	{
 		//power up the clock
 		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_EN);
 		tmp &= ~(1 << CLK_Channel);
 		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_EN, tmp);
-	} else {
-		//power down the clock
-		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_EN);
-		tmp |= 1 << CLK_Channel;
-		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_EN, tmp);
-		//power down output driver
-		tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel);
-		tmp |= CLK_PDN_MASK;
-		Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_PDN + CLK_Channel, tmp);
 	}
 }
 
@@ -677,27 +777,11 @@ void Si5351_CLKConfig(Si5351_ConfigTypeDef *Si5351_ConfigStruct, Si5351_CLKChann
 	}
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_INV + CLK_Channel, tmp);
 
-	//set CLK disable state
-	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_DIS_STATE + (CLK_Channel >> 2)); //increment the address by 1 if CLKx>=CLK4
-	tmp_mask = CLK_DIS_STATE_MASK << ((CLK_Channel & 0x03)<<1); //shift the mask according to the selected channel
-	tmp &= ~tmp_mask;
-	tmp |= tmp_mask & ((Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Disable_State) << ((CLK_Channel & 0x03)<<1));
-	Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_DIS_STATE + (CLK_Channel >> 2), tmp);
-
 	//set CLK current drive
 	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_IDRV + CLK_Channel);
 	tmp &= ~CLK_IDRV_MASK;
 	tmp |= CLK_IDRV_MASK & Si5351_ConfigStruct->CLK[CLK_Channel].CLK_I_Drv;
 	Si5351_WriteRegister(Si5351_ConfigStruct, REG_CLK_IDRV + CLK_Channel, tmp);
-
-	//set OEB pin
-	tmp = Si5351_ReadRegister(Si5351_ConfigStruct, REG_CLK_OEB);
-	tmp_mask = 1 << CLK_Channel;
-	tmp &= ~tmp_mask;
-	if (Si5351_ConfigStruct->CLK[CLK_Channel].CLK_Use_OEB_Pin == OFF)
-	{
-		tmp |= tmp_mask;
-	}
 
 	if (CLK_Channel <= CLK5) //CLK6 and 7 are integer only, which causes several limitations
 	{
@@ -777,7 +861,18 @@ int Si5351_Init(Si5351_ConfigTypeDef *Si5351_ConfigStruct)
 			if (timeout==0) return 1; //return 1 if initialization timed out
 		}
 		//clear CLKIN sticky bit
-		Si5351_ClearStickyBit(Si5351_ConfigStruct, StatusBit_SysInit | StatusBit_PLLA | StatusBit_PLLB);
+		Si5351_ClearStickyBit(Si5351_ConfigStruct, StatusBit_CLKIN);
+	}
+
+	if (Si5351_ConfigStruct->f_XTAL != 0) //if XTAL used, check it as well
+	{
+		while (Si5351_CheckStatusBit(Si5351_ConfigStruct, StatusBit_XTAL))
+		{
+			timeout--;
+			if (timeout==0) return 1; //return 1 if initialization timed out
+		}
+		//clear XTAL sticky bit
+		Si5351_ClearStickyBit(Si5351_ConfigStruct, StatusBit_XTAL);
 	}
 
 	//power on or off the outputs
