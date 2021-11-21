@@ -24,7 +24,7 @@ The PLL can be set to any frequency - the limits were empirically found to be ab
 Useable range of frequencies is however (on my tested devices) narrower - 170 to 820 MHz (yes, one is out of spec, the other is just abusement of the device, it should be 600-900).
 The library takes control of everything, all you need is to set the multiplier values and clock source and use the configuration functions. It is also possible to override the default VCO capacitive load, though not recommended.
 
-TODO: Currently, only one PLL can be reset at a time. Note however that even by resetting them at the same time, they will never be synchronised! If you want synchronous clocks with defined phase offset, they have to be taken from one PLL!
+NOTE: Resetting both PLLs at the same time has been implemented. Note however that even by resetting them at the same time, they will never be synchronised! If you want synchronous clocks with defined phase offset, they have to be taken from one PLL!
 
 ### Spread Spectrum
 Spread spectrum supports both down- and center-spread. It has been empirically found that it can be used up to about 5% spread (datasheet allows max +-2.5%). At around 8%, glitches on output start to appear.
@@ -84,35 +84,70 @@ This is all you need to get a clock out of the Si5351. There are many options yo
 
 ----
 ## Reference
-Please, be aware that the documentation of SiLabs is full of errors and nonsense. My library has most of them fixed, some of my own fixes were even reflected by SiLabs in AN-619 v0.7. I am hosting the documents here, because SiLabs hides the old versions of the documents.
+Please, be aware that the documentation of SiLabs is full of errors and nonsense. My library has most of them 
+fixed, some of my own fixes were even reflected by SiLabs in AN-619 v0.7. I am hosting the documents here, because SiLabs hides the old versions of the documents.
+PLEASE BE AWARE OF THE FACT THAT THE LIBRARY HAS BEEN WRITTEN IN 2018-2020. Therefore, it should be updated to 
+match datasheet 1.2 and 1.3 and AN-619 0.8. Also, older versions should be checked fro explaining undocumented registers.
+
+Datasheets:
+
+[Datasheet for the Si5351 v1.3 NOT USED DURING LIBRARY CREATION](/documentation/datasheet_1.3.pdf)
+
+[Datasheet for the Si5351 v1.2 NOT USED DURING LIBRARY CREATION](/documentation/datasheet_1.2.pdf)
 
 [Datasheet for the Si5351 v1.1](/documentation/datasheet_1.1.pdf)
 
-[Datasheet for the Si5351 v1.0](http://web.archive.org/web/20170923110814/https://www.silabs.com/documents/public/data-sheets/Si5351-B.pdf)
+[Datasheet for the Si5351 v1.0](/documentation/datasheet_1.0.pdf)
 
-[AN-551: Crystal selection guide for Si5350/51 devices v0.3](/documentation/AN551.pdf)
+[Datasheet for the Si5351 v0.75 NOT USED DURING LIBRARY CREATION](/documentation/datasheet_0.75.pdf)
 
-[AN-554: Si5350/51 PCB Layout Guide v0.3](/documentation/AN554.pdf)
+[Datasheet for the Si5351 v0.95 (it is older than 0.75) NOT USED DURING LIBRARY CREATION](/documentation/datasheet_0.95.pdf)
 
-Please see this, I tried to draw into the document what is wrong:
+[Datasheet for the Si5351 v0.9 (it is older than 0.75) NOT USED DURING LIBRARY CREATION](/documentation/datasheet_0.9.pdf)
+
+[Datasheet for the Si5351 v0.1 NOT USED DURING LIBRARY CREATION](/documentation/datasheet_0.1.pdf)
+
+Application note explaining setup of the chip:
+
+[AN-619: Manually generating a Si5351 Register Map v0.8 NOT USED DURING LIBRARY CREATION](/documentation/AN619_0.8.pdf)
 
 [AN-619: Manually generating a Si5351 Register Map v0.7 with my own corrections of bugs](/documentation/AN619_0.7_corrected.pdf)
 
 [AN-619: Manually generating a Si5351 Register Map v0.7](/documentation/AN619_0.7.pdf)
 
-This is the only place where there is some mention of the VCO capacitive load:
+[AN-619: Manually generating a Si5351 Register Map v0.6 (This is the only place where there is some mention of the VCO capacitive load)](/documentation/AN619_0.6.pdf)
 
-[AN-619: Manually generating a Si5351 Register Map v0.6](/documentation/AN619_0.6.pdf)
+[AN-619: Manually generating a Si5351 Register Map v0.3 NOT USED DURING LIBRARY CREATION](/documentation/AN619_0.3.pdf)
+
+[AN-619: Manually generating a Si5351 Register Map v0.2 NOT USED DURING LIBRARY CREATION](/documentation/AN619_0.2.pdf)
+
+Auxiliary application notes:
+
+[AN-551: Crystal selection guide for Si5350/51 devices v0.3](/documentation/AN551.pdf)
+
+[CURRENTLY NOT KNOWN ~~AN-551: Crystal selection guide for Si5350/51 devices v0.2 NOT USED DURING LIBRARY CREATION~~]()
+
+[AN-551: Crystal selection guide for Si5350/51 devices v0.1 NOT USED DURING LIBRARY CREATION](/documentation/AN551_0.1.pdf)
+
+[AN-554: Si5350/51 PCB Layout Guide v0.3](/documentation/AN554.pdf)
+
+[AN-554: Si5350/51 PCB Layout Guide v0.2 NOT USED DURING LIBRARY CREATION](/documentation/AN554_0.2.pdf)
+
+[AN-554: Si5350/51 PCB Layout Guide v0.1 NOT USED DURING LIBRARY CREATION](/documentation/AN554_0.1.pdf)
+
+FAQ (list of versions not available)
+
+[Si5351 FAQ v0.5 NOT USED DURING LIBRARY CREATION](/documentation/Si5350-Si5351FAQ(v0.5).pdf)
 
 [Si5351 FAQ v0.2](/documentation/Si5350-Si5351FAQ(v0.2).pdf)
 
 Here is a list of errors I found in datasheet 1.0 and AN-619 0.6:
 
-[First contact with someone from SiLabs about all of those nasty bugs](https://www.silabs.com/community/timing/forum.topic.html/si5351_hw_bugs_-out-KeNr)
+[DELETED after SiLabs being bought by Skyworks ~~First contact with someone from SiLabs about all of those nasty bugs~~](https://www.silabs.com/community/timing/forum.topic.html/si5351_hw_bugs_-out-KeNr)
 
 Effort to find some info about the VCO capacitive load and the LOS_XTAL and its corresponding status bit, sticky bit and int mask:
 
-[Second contact with SiLabs about the bugs, a year later](https://www.silabs.com/community/timing/forum.topic.html/si5351_register_183-r4JV)
+[DELETED after SiLabs being bought by Skyworks ~~Second contact with SiLabs about the bugs, a year later~~](https://www.silabs.com/community/timing/forum.topic.html/si5351_register_183-r4JV)
 
 And most importantly - some info from radioamateurs who were trying out how the damned thing works:
 
